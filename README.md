@@ -1,74 +1,143 @@
-''' TEXT PREPROCESSING '''
-import re
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from transformers import AutoTokenizer, AutoModelForTokenClassification
-from transformers import pipeline
 
+# Arabic Text Preprocessing, Named Entity Recognition (NER), and Embedding
 
-arabic_stopwords = set(stopwords.words('arabic'))|{'غيرها','هي','هو','هما','عندما'}
+This Python script performs **text preprocessing**, **Named Entity Recognition (NER)**, and **embedding generation** for Arabic text. It uses libraries like `nltk`, `transformers`, and `gensim` to process input text and extract meaningful entities for further analysis.
 
+## Table of Contents
+- [Requirements](#requirements)
+- [Features](#features)
+- [Code Overview](#code-overview)
+- [Usage](#usage)
+- [Customization](#customization)
+- [License](#license)
+
+---
+
+## Requirements
+To run the code, ensure you have the following dependencies installed:
+- Python 3.x
+- `transformers` (for NER using Hugging Face models)
+- `nltk` (for stopwords and tokenization)
+- `gensim` (for word embeddings)
+- `scikit-learn` (for PCA)
+- `scipy` (for cosine similarity)
+
+Install the required packages:
+```bash
+pip install nltk transformers gensim scikit-learn scipy
+```
+
+Additionally, download the Arabic stopwords for `nltk`:
+```python
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
+```
+
+---
+
+## Features
+1. Text Preprocessing:
+   - Removes Arabic stopwords.
+   - Cleans Arabic diacritics.
+   - Normalizes Arabic text (e.g., replacing "أ", "إ", and "آ" with "ا").
+   - Removes punctuation and special characters.
+
+2. Named Entity Recognition (NER):
+   - Utilizes the pre-trained Hugging Face model `hatmimoha/arabic-ner`.
+   - Extracts entities and their types from Arabic text.
+   - Cleans tokenized results for better readability.
+
+3. Embedding Creation:
+   - Converts recognized entities into word embeddings using `gensim`'s Word2Vec.
+   - Performs dimensionality reduction using Principal Component Analysis (PCA).
+
+---
+
+## Code Overview
+
+### 1. Text Preprocessing (`text_preprocessing_arabic`)
+This function removes stopwords, diacritics, punctuation, and performs Arabic text normalization. It prepares the input text for downstream NER tasks.
+
+```python
 def text_preprocessing_arabic(text):
-    text = text.split()
-    text = [word for word in text if word not in arabic_stopwords]
-    arabic_diacritics = re.compile(r"[\u0617-\u061A\u064B-\u0652]")
-    text = re.sub(arabic_diacritics, '', " ".join(text))
-    text = re.sub(r'[^\w\s]', '', text)
-    normalization_map = {'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ة': 'ه', 'ؤ': 'و', 'ئ': 'ي'}
-    for key, value in normalization_map.items():
-        text = text.replace(key, value)    
-    return text
-    
-    
+    ...
+    return cleaned_text
+```
 
+### 2. Named Entity Recognition (`NER`)
+This function uses Hugging Face's `pipeline` with a pre-trained Arabic NER model to extract entities and their categories.
+
+```python
 def NER(text):
-    cleaned_results = []
-    token = #my token name
-    tokenizer = AutoTokenizer.from_pretrained("hatmimoha/arabic-ner", token=token)
-    model = AutoModelForTokenClassification.from_pretrained("hatmimoha/arabic-ner", token=token)
-    nlp_ner = pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="first")
-    ner_results = nlp_ner(text)
-    
-    for entity in ner_results:
-      word = entity["word"].replace("##", "") 
-      if cleaned_results and word.startswith(" "): 
-        cleaned_results[-1]["word"] += word
-      else:
-        entity["word"] = word
-        cleaned_results.append(entity)
-    my_entities=[]
- 
-    for entity in cleaned_results:
-        my_entities.append({entity['word']:entity['entity_group']})
+    ...
     return my_entities
+```
 
+### 3. Full NER Pipeline (`fullNER`)
+This function integrates text preprocessing and NER, returning cleaned and labeled entities.
+
+```python
 def fullNER(text):
-    b=text_preprocessing_arabic(text)
-    text=NER(b)
+    ...
     return text
+```
 
-postNER=fullNER(x)
-''' NER '''
-from sklearn.decomposition import PCA
-import numpy as np
-from scipy.spatial.distance import cosine
-from gensim.models import Word2Vec
+### 4. Embedding Generation (`Embedding`)
+This function:
+- Extracts entities from the NER output.
+- Converts entities into word embeddings using `Word2Vec`.
+- Reduces the dimensionality of embeddings using PCA.
+
+```python
 def Embedding(postNER):
-        entities = [list(item.keys())[0] for item in postNER]
-        print(entities)
-        model = Word2Vec([entities], vector_size=100, window=5, min_count=1, workers=4)
-        word_vectors = [model.wv[entity] for entity in entities if entity in model.wv]
+    ...
+```
 
-        print(f"Number of valid word vectors: {len(word_vectors)}",'\n')
-        if len(word_vectors) > 1:  
+---
 
-           word_vectors = np.array(word_vectors)
+## Usage
+### Example Workflow
+1. Preprocess Arabic text.
+2. Perform Named Entity Recognition.
+3. Generate embeddings for recognized entities.
 
-           pca = PCA(n_components=min(50, len(word_vectors)))  
-           reduced_vectors = pca.fit_transform(word_vectors)
+```python
+# Input Arabic text
+text = "الرئيس اللبناني يعقد اجتماعاً لمناقشة التحديات الاقتصادية."
 
-           for entity, vector in zip(entities, reduced_vectors):
-              print(f"Entity: {entity},'\n', {vector},'\n'")
-        else:
-           print("Not enough valid word vectors for PCA.")
+# Full NER pipeline
+postNER = fullNER(text)
 
+# Generate embeddings for recognized entities
+Embedding(postNER)
+```
+
+### Output Example
+The script will output:
+- A list of extracted entities with their categories.
+- Word vectors for the entities.
+- Reduced vectors after applying PCA.
+
+---
+
+## Customization
+1. Adding/Removing Stopwords:
+   Modify the `arabic_stopwords` set to include or exclude additional stopwords:
+   ```python
+   arabic_stopwords = set(stopwords.words('arabic')) | {'غيرها', 'هي', 'هو'}
+   ```
+
+2. Changing the NER Model:
+   Replace `"hatmimoha/arabic-ner"` with another pre-trained model if needed.
+
+3. Adjusting Word2Vec Parameters:
+   Modify parameters like `vector_size`, `window`, or `min_count` in the `Word2Vec` function for different embeddings:
+   ```python
+   model = Word2Vec([entities], vector_size=200, window=3, min_count=2, workers=4)
+   ```
+
+---
+
+## License
+This project is open-source and can be used for educational or research purposes.
